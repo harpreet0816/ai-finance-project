@@ -1,36 +1,28 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# This was inserted by `prisma init`:
+# Environment variables declared in this file are automatically made available to Prisma.
+# See the documentation for more detail: https://pris.ly/d/prisma-schema#accessing-environment-variables-from-the-schema
 
-## Getting Started
+# Prisma supports the native connection string format for PostgreSQL, MySQL, SQLite, SQL Server, MongoDB and CockroachDB.
+# See the documentation for all the connection string options: https://pris.ly/d/connection-strings
 
-First, run the development server:
+#npm update prisma @prisma/client --save  
+#Updates prisma (CLI) and @prisma/client (database client) to the latest version.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+#npx prisma db pull
+#Connects to your PostgreSQL database and fetches existing tables & schemas.
+#Updates prisma/schema.prisma file with the detected schema.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+#npx prisma generate
+#Creates the Prisma Client that allows you to interact with your database in JavaScript/TypeScript.
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+#npx prisma migrate dev --name "init"
+#Creates a new migration with the name "init".
+#Applies the migration to the database.
+#Updates the prisma/migrations/ folder with SQL migration files.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-## Learn More
+#npx prisma migrate rest
+#Warning: This deletes all data and resets the database.
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+#npx prisma studio
+#Opens a web-based GUI to browse, edit, and delete database records.
