@@ -26,7 +26,7 @@ export default async function DashboardPage() {
 
         {accounts.length > 0 && accounts?.map(account => {
           return <AccountCard key={account.id} account={account}/>
-        })}
+        })} 
       </div>
     </div>
   );
