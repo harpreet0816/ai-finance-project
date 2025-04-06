@@ -94,3 +94,80 @@ export async function getAccountWithTransactions(accountId) {
     return { success: false, data: error?.message };
   }
 }
+
+export async function bulkDeleteTransactions(transactionIds) {
+  try {
+    const { userId } = await auth();
+    if (!userId) throw new Error("Unauthorized");
+
+    const user = await db.user.findUnique({
+      where: {
+        clerkUserId: userId,
+      },
+    });
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    const transactions = await db.transaction.findMany({
+      where: {
+        id: { in: transactionIds },
+        userId: user.id,
+      },
+    });
+
+    if (transactions.length === 0) {
+      return { success: false, data: "No matching transactions found." };
+    }
+
+    const accountBalanceChanges = transactions.reduce((acc, transaction) => {
+      const change =
+        transaction.type === "EXPENSE"
+          ? transaction.amount
+          : -transaction.amount;
+
+      acc[transaction.accountId] = (acc[transaction.accountId] || 0) + change;
+      return acc;
+    }, {});
+
+    // Perform deletion + balance updates in a transaction
+    try {
+      await db.$transaction(async (tx) => {
+        await tx.transaction.deleteMany({
+          where: {
+            id: { in: transactionIds },
+            userId: user.id,
+          },
+        });
+
+        for (const [accountId, balanceChange] of Object.entries(accountBalanceChanges)) {
+          await tx.account.update({
+            where: { id: accountId },
+            data: {
+              balance: {
+                increment: balanceChange,
+              },
+            },
+          });
+        }
+      });
+    } catch (transactionError) {
+      console.error("Transaction failed:", transactionError);
+      return {
+        success: false,
+        data: "Transaction failed. Please try again.",
+      };
+    }
+
+    // ✅ Revalidate after transaction
+    revalidatePath("/dashboard");
+    revalidatePath("/account/[id]", "dynamic");
+
+    return { success: true, data: true };
+
+  } catch (error) {
+    console.error("bulkDeleteTransactions error:", error.message);
+    return { success: false, data: error?.message || "Something went wrong" };
+  }
+}

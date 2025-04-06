@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Table,
   TableBody,
@@ -25,6 +25,9 @@ import {
   Clock,
   MoreHorizontal,
   RefreshCcw,
+  SearchIcon,
+  Trash,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -36,6 +39,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useRouter } from "next/navigation";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import useFetch from "@/hooks/use-fetch";
+import { bulkDeleteTransactions } from "@/actions/account";
+import { toast } from "sonner";
+import { BarLoader } from "react-spinners";
 
 const RECURRING_INTERVALS = {
   DAILY: "Daily",
@@ -51,7 +60,86 @@ const TransactionTable = ({ transactions }) => {
     field: "date",
     direction: "desc",
   });
-  const filteredAndSortedTransactions = transactions;
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [typeFilter, setTypeFilter] = useState("");
+  const [recurringFilter, setRecurringFilter] = useState("");
+
+  
+  const filteredAndSortedTransactions = useMemo(()=> {
+    let result = [...transactions];
+
+    // apply seach filter
+    if(searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      result = result.filter(transactions => 
+        transactions.description?.toLowerCase().includes(searchLower)
+      )
+    }
+
+    // apply recurring filter
+    if(recurringFilter){
+      result = result.filter((transaction) => {
+        if(recurringFilter === "recurring") return transaction.isRecurring;
+
+        return !transaction.isRecurring;
+      })
+    }
+
+    //apply type filter
+    if(typeFilter){
+      result = result.filter((transaction) => transaction.type === typeFilter);
+    }
+
+    // apply sorting
+    result.sort((a, b) =>{
+      let comparison = 0;
+
+      switch (sortConfig.field) {
+        case "date":
+          comparison = new Date(a.date) - new Date(b.date);
+          break;
+        case "amount":
+          comparison = a.amount - b.amount;
+          break;
+        case "category":
+          comparison = a.category.localeCompare(b.category);
+          break;
+      
+        default:
+          comparison = 0;
+          break;
+      }
+      return sortConfig.direction === "asc" ? comparison : -comparison;
+    } )
+
+    return result;
+  }, [
+    transactions,
+    searchTerm,
+    typeFilter,
+    recurringFilter,
+    sortConfig,
+  ]);
+
+ const {loading: deleteLoading, fn: deleteFn, data: deleted, error: deleteErr} = useFetch(bulkDeleteTransactions);
+
+ useEffect(()=> {
+  if(deleted && !deleteLoading){
+    toast.error("Transaction deleted successfully");
+  }else if(deleteErr && !deleteLoading){
+    toast.error(deleteErr)
+  }
+ }, [deleted, deleteLoading, deleteErr])
+ 
+ const handleBulkDelete = () => {
+  if (!window.confirm(`Are you sure you want to delete ${selectedIds.length} transactions?`)) {
+    return;
+  }
+
+  // Proceed with delete
+  deleteFn(selectedIds);
+  }
 
   const handleSort = (field) => {
     setSortConfig((current) => ({
@@ -69,9 +157,66 @@ const TransactionTable = ({ transactions }) => {
     setSelectedIds(current => current.length === filteredAndSortedTransactions.length ? [] : filteredAndSortedTransactions.map(t => t.id));
   }
 
+
+  const handleClearFilters = () => {
+    setSearchTerm("");
+    setTypeFilter("");
+    setRecurringFilter("");
+    setSelectedIds([]);
+  }
+
   return (
     <div className="space-y-4">
+    {deleteLoading && <BarLoader className="mt-4" width={"100%"} color="#9333ea" />}
       {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="relative flex-1">
+          <SearchIcon  className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground"/>
+          <Input 
+          className="pl-8"
+          placeholder="Search transactions..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+
+        <div className="flex gap-2">
+        <Select value={typeFilter} onValueChange={setTypeFilter}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="All Types" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="INCOME">Income</SelectItem>
+            <SelectItem value="EXPENSE">Expense</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={recurringFilter} onValueChange={(value) => setRecurringFilter(value)}>
+          <SelectTrigger className="w-[130px]">
+            <SelectValue placeholder="All Transactions" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="recurring">Recurring Only</SelectItem>
+            <SelectItem value="non-recurring">Non-recurring only</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {selectedIds.length > 0 && (
+          <div>
+            <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
+              <Trash className="h-4 w-4 mr-2"/>
+              Delete Selected ({selectedIds.length})
+            </Button>
+          </div>
+        )}
+
+        {(searchTerm || typeFilter || recurringFilter || selectedIds.length > 0) && (
+          <Button variant="outline" size="icon" onClick={handleClearFilters} title="Clear Filters">
+            <X className="h-4 w-5"/>
+          </Button>
+        ) }
+        </div>
+         
+      </div>
 
       {/* Transactions */}
       <div className="rounded-md border"></div>
@@ -144,7 +289,7 @@ const TransactionTable = ({ transactions }) => {
             </TableRow>
           ) : (
             filteredAndSortedTransactions.map((transaction) => (
-              <TableRow>
+              <TableRow key={transaction.id}>
                 <TableCell>
                   <Checkbox onCheckedChange={() => handleSelect(transaction.id)}
                   checked={selectedIds.includes(transaction.id)}
@@ -226,7 +371,7 @@ const TransactionTable = ({ transactions }) => {
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
                         className="text-destructive"
-                        // onClick={() => deleteFn([transaction.id])}
+                        onClick={() => deleteFn([transaction.id])}
                       >
                         Delete
                       </DropdownMenuItem>
