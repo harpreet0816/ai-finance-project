@@ -17,7 +17,7 @@ export default async function DashboardPage() {
   }
 
   return (
-    <div BudgetProgressclassName="px-5">
+    <div className="space-y-8">
       {/* budget progress */}
       {defaultAccount && <BudgetProgress 
         initialBuget={budgetData?.budget}

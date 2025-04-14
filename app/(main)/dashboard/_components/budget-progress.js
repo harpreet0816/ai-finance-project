@@ -1,4 +1,5 @@
 "use client";
+import { updateBudget } from "@/actions/budget";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -8,22 +9,50 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
+import useFetch from "@/hooks/use-fetch";
 import { Check, Pencil, X } from "lucide-react";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { toast } from "sonner";
 
-const BudgetProgress = ({ initailBudget, currentExpenses }) => {
+const BudgetProgress = ({ initialBuget, currentExpenses }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [newBudget, setNewBudget] = useState(
-    initailBudget?.amount?.toString() || ""
+    initialBuget?.amount?.toString() || ""
   );
 
-  const percentUsed = initailBudget
-    ? (currentExpenses / initailBudget.amount) * 100
+  const percentUsed = initialBuget
+    ? (currentExpenses / initialBuget.amount) * 100
     : 0;
 
-  const handleUpdateBudget = () => {};
+  const { loading: isLoading, fn: updateBudgetFn, data: updatedBudget, error} = useFetch(updateBudget);
+
+  const handleUpdateBudget = async () => {
+    const amount = parseFloat(newBudget);
+
+    if(isNaN(amount) || amount <= 0){
+      toast.error("Please enter a valid amount");
+      return;
+    }
+
+    await updateBudgetFn(amount);
+  };
+
+  useEffect(()=> {
+    if(updatedBudget?.id) {
+      setIsEditing(false);
+      toast.success("Budget updated successfully");
+    }
+  }, [updatedBudget])
+
+  useEffect(()=> {
+    if(error) {
+      toast.error(error.message || "Failed to update budget");
+    }
+  }, [error])
+
   const handleCancel = () => {
-    setNewBudget(initailBudget?.amount?.toString() || "");
+    setNewBudget(initialBuget?.amount?.toString() || "");
     setIsEditing(false);
   };
 
@@ -43,11 +72,13 @@ const BudgetProgress = ({ initailBudget, currentExpenses }) => {
                     className={"w-32"}
                     placeholder="Enter amoun"
                     autoFocus
+                    disabled={isLoading}
                   />
                   <Button
                     variant={"ghost"}
                     size={"icon"}
                     onClick={handleUpdateBudget}
+                    disabled={isLoading}
                   >
                     <Check className="h-4 w-4 text-green-500" />
                   </Button>
@@ -55,6 +86,7 @@ const BudgetProgress = ({ initailBudget, currentExpenses }) => {
                     variant={"ghost"}
                     size={"icon"}
                     onClick={handleCancel}
+                    disabled={isLoading}
                   >
                     <X className="h-4 w-4 text-red-500" />
                   </Button>
@@ -62,11 +94,11 @@ const BudgetProgress = ({ initailBudget, currentExpenses }) => {
               ) : (
                 <>
                   <CardDescription>
-                    {initailBudget
-                      ? `$${currentExpenses.toFixed(
-                          2
-                        )} of $${initailBudget.amount.toFixed(2)} spend`
-                      : "No budget set"}
+                  {initialBuget
+                    ? `$${currentExpenses.toFixed(
+                        2
+                      )} of $${initialBuget.amount.toFixed(2)} spent`
+                    : "No budget set"}
                   </CardDescription>
                   <Button
                     variant={"ghost"}
@@ -83,7 +115,15 @@ const BudgetProgress = ({ initailBudget, currentExpenses }) => {
           <CardDescription>Card Description</CardDescription>
         </CardHeader>
         <CardContent>
-          <p>Card Content</p>
+          {initialBuget && <div className="space-y-2">
+          <Progress value={percentUsed} 
+            extraStyles={`${
+              percentUsed >= 90 ? "bg-red-500" : percentUsed >= 75 ? "bg-yellow-500" : "bg-green-500"
+            }`}
+          />
+          <p className="text-xs text-muted-foreground text-right">{percentUsed.toFixed(1)}% used</p>
+          </div>
+          }
         </CardContent>
       </Card>
     </div>

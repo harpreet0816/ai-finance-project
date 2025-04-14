@@ -107,7 +107,7 @@ export async function updateBudget(amount) {
 
     return {
       success: true,
-      date: {...budget, amount: budget.amount.toNumber()},
+      data: {...budget, amount: budget.amount.toNumber()},
     };
   } catch (error) {
     console.error("Error fetching budget", error.message);
